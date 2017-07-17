@@ -8,5 +8,5 @@ fi
 # Not all systems store manpages in the same place, so we may eventually
 # want to use more complex logic for determining that path.
 DIR=`dirname $0`
-cp -v $DIR/peekaboo.py /usr/local/bin/peekaboo
-cp -v $DIR/peekaboo.1 /usr/local/man/man1/peekaboo.1
+cp -v $DIR/peekaboo.py /usr/local/sbin/peekaboo
+cp -v $DIR/peekaboo.8 /usr/local/man/man8/peekaboo.8
