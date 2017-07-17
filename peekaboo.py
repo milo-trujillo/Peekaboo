@@ -3,16 +3,10 @@
 import time, os, sys, argparse, pwd, grp
 from scapy.all import *
 
-username = None
-maxAge = None
-sequence = []
-command = None
-clients = dict()
-
 # Many systems require root access for packet sniffing, but we probably
 # don't want to be running any commands as root. Drop to whatever user
 # has been requested before we run anything.
-def dropPrivileges():
+def dropPrivileges(username):
 	if( os.getuid() != 0 or username == None ):
 		return
 	uid = pwd.getpwnam(username).pw_uid
@@ -26,23 +20,24 @@ def dropPrivileges():
 	os.setgid(gid)
 	os.setuid(uid)
 
-def trigger(addr):
+def trigger(username, command, addr):
 	pid = os.fork()
 	if( pid == 0 ): # Child
-		dropPrivileges()
+		dropPrivileges(username)
 		# We *should* use exec here, but that requires parsing the command
 		# to split arguments, and getting the path to the executable
 		ret = os.system(command)
 		sys.exit(ret)
 
-def clearOldKnocks():
-	global clients
+def clearOldKnocks(maxAge, clients):
 	now = int(time.strftime("%s"))
-	clients = {k: v for k,v in clients.iteritems() if (now - v[0] <= maxAge)}
+	for c in list(clients.keys()):
+		if( now - clients[c][0] > maxAge ):
+			del clients[c]
 
-def addKnock(addr, port):
+def addKnock(maxAge, sequence, addr, port, clients):
 	now = int(time.strftime("%s"))
-	clearOldKnocks()
+	clearOldKnocks(maxAge, clients)
 	if( addr in clients ):
 		numEntered = len(clients[addr])
 		# Make sure this is the next knock in the sequence
@@ -50,22 +45,27 @@ def addKnock(addr, port):
 			clients[addr] += [now]
 		else:
 			del clients[addr]
-			return
-		if( len(clients[addr]) == len(sequence) ):
-			trigger(addr)
+			return False
 	# First knock
 	else:
 		if( port == sequence[0] ):
 			clients[addr] = [now]
+	if( len(clients[addr]) == len(sequence) ):
+		return True
+	return False
 
-def process(packet):
-	src = packet[1].src
-	port = packet[2].dport
-	if( port in sequence ):
-		addKnock(src, port)
-	# Sequence broken
-	elif( src in clients ):
-		del clients[src]
+def process(maxAge, sequence, command, username, clients):
+	def process_packet(packet):
+		src = packet[1].src
+		port = packet[2].dport
+		if( port in sequence ):
+			triggered = addKnock(maxAge, sequence, src, port, clients)
+			if( triggered ):
+				trigger(username, command, src)
+		# Sequence broken
+		elif( src in clients ):
+			del clients[src]
+	return process_packet
 
 class Parser(argparse.ArgumentParser):
 	def error(self, message):
@@ -74,10 +74,6 @@ class Parser(argparse.ArgumentParser):
 		sys.exit(2)
 
 def parseOptions():
-	global maxAge
-	global sequence
-	global command
-	global username
 	descr = "A trivial port knocker."
 	parser = Parser(description=descr)
 	parser.add_argument("-t", "--timeout",
@@ -96,7 +92,8 @@ def parseOptions():
 	command = options.command[0]
 	username = options.user
 	maxAge = options.maxAge
+	return [maxAge, sequence, command, username]
 
 if __name__ == "__main__":
-	parseOptions()
-	sniff(filter="tcp", prn=process)
+	[maxAge, sequence, command, username] = parseOptions()
+	sniff(filter="tcp", prn=process(maxAge, sequence, command, username, dict()))
