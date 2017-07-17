@@ -1,0 +1,37 @@
+.Dd July 16, 2017
+.Dt PEEKABOO 1
+.Os
+.Sh NAME
+.Nm peekaboo
+.Nd A trivial port-knocking daemon
+.Sh SYNOPSIS
+.Nm
+.Op Fl t Ar timeout
+.Op Fl u Ar user
+.Ar command
+.Op Fl s Ar sequence
+.Sh DESCRIPTION
+.Pp
+Peekaboo listens for a series of port knocks from a host, then executes an arbitrary command. On many systems, packet sniffing requires root privileges. Therefore, peekaboo supports dropping privileges to a specified user before executing the command.
+.Lp
+The following options are available:
+.Bl -tag -width indent
+.It Fl t -timeout
+Specify how long a host has to complete the port knock before progress is reset (default: 10 seconds).
+.It Fl u -user
+Drop privileges to the specified user before executing a command
+.It Fl s -sequence
+Specify the ports that need to be knocked to trigger the command.
+.El
+.Sh EXAMPLES
+The following is an example usage of 
+.Nm
+.Pp
+.Dl $ sudo ./peekaboo.py -t 20 -u www /tmp/foo -s 1234 2345
+.Pp
+This will listen for a port knocking sequence on ports 1234 and 2345, and then run /tmp/foo as the "www" user.
+.Sh SEE ALSO
+.Xr knockd 1
+.Sh BUGS
+To file a bug report, please visit:
+.Dl https://github.com/milo-trujillo/Peekaboo
