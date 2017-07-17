@@ -12,7 +12,7 @@ clients = dict()
 # Many systems require root access for packet sniffing, but we probably
 # don't want to be running any commands as root. Drop to whatever user
 # has been requested before we run anything.
-def dropPriviledges():
+def dropPrivileges():
 	if( os.getuid() != 0 or username == None ):
 		return
 	uid = pwd.getpwnam(username).pw_uid
@@ -29,7 +29,7 @@ def dropPriviledges():
 def trigger(addr):
 	pid = os.fork()
 	if( pid == 0 ): # Child
-		dropPriviledges()
+		dropPrivileges()
 		# We *should* use exec here, but that requires parsing the command
 		# to split arguments, and getting the path to the executable
 		ret = os.system(command)
